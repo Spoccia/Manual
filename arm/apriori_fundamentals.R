@@ -2,13 +2,13 @@ library(arules)
 library(arulesSequences)
 #salva il dataframe con solo le colonne delle variabili di cui cercare le regole 
 #in un file senza estensione
-path<-"C:/Users/Dan/Google Drive/poli/borsa/tarm/script"
+path<-""
 ds<-data.frame(ID=1:4,
                a=c(1,3,1,1),
                b=c("alpha","alpha","beta","beta"),
                c=c("pippo","pluto","pluto","pippo"))
 write.table(ds,paste0(path,"/data"),row.names = F,col.names = F)
-#carica il file in formato transazione co
+#carica il file in formato transazione
 t<-read.transactions(paste0(path,"/data"),format="basket",cols = 1)
 
 ###apriori
