@@ -1,0 +1,11 @@
+Example time series data:
+
+Variables:
+ - power
+ - temperature
+
+Timestamp: 1 hour
+
+Period: 
+ from: 01-01-2017
+ to: 31-12-2017
