@@ -1,7 +1,7 @@
 asax<-function(x,cat,gam=0.0000000000001){
   x<-x[!is.na(x)]
 
-
+  #initialization of the breakpoints
   bb<-discretize(x,method = "frequency",breaks=cat,onlycuts = TRUE)
   # bb<-c(min(x),bb,max(x))
   
