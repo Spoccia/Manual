@@ -16,8 +16,6 @@ library(cwhmisc)
 library(ggplot2)
 
 
-
-
 set.seed(123)#necessary to replicate always the same random generation
 df<-data.frame(x=10+10*rnorm(100),y=3+5*rnorm(100),clr=rep(0,100))
 set.seed(123)#set each time a random number generation is performed
