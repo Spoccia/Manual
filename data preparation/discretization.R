@@ -15,6 +15,7 @@
 rm(list = ls())
 library(arules)
 source("asax.R")
+
 path<-""
 df<-read.csv2(paste0(path,"data.csv"),sep=";",dec=",")
 #set the date time format as POSIXct
