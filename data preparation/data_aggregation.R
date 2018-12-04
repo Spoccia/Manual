@@ -26,7 +26,7 @@ df$date_time <- as.POSIXct(df$date_time, origin = "1970-01-01 00:00:00",
                            tz = "Etc/GMT+12")
                            
 #round the date time variable at the interval of aggregation desired 
-df$date_time <-round_date(date,"15 minutes")
+df$date_time <-round_date(df$date_time,"15 minutes")
 
 #aggregate data calculating the mean in the aggregation interval
 
@@ -36,9 +36,9 @@ df$date_time <-round_date(date,"15 minutes")
 # it can be parallelized easily
 # it is possible to easily apply different functions on the different columns
 
-df<-ddply(.(date_time),colwise,mean) # compact form
+df<-ddply(df..(date_time),colwise,mean) # compact form
 
-df<-ddply(.(date_time),summarize,
+df<-ddply(df,.(date_time),summarize,
           power_mean=mean(power,na.rm=TRUE),
           temperature_mean=mean(temperature,na.rm=TRUE),
           temperature_max=max(temperature,na.rm=TRUE)
