@@ -5,6 +5,7 @@ library(tidyverse)
 library(lubridate)
 library(RColorBrewer)
 library(scales)
+library(dplyr)
 # Load the predefined theme for carpet plot
 source("theme_carpet.R")
 source("Functions.R")
@@ -17,6 +18,8 @@ ui <- fluidPage(
              uiOutput("choose_dataset"),
    # fileInput(inputId = "file", label = "Choose file"),
             uiOutput("SelectColumn"),
+            uiOutput("SelectDate"),
+    #        uiOutput("ApplyDate"),
             uiOutput("KindGraph"),
             uiOutput("OrganizeBy")
         ),
@@ -51,6 +54,30 @@ server <- function(input, output, session) {
         }
         selectInput("Variable", "Variable",choices =varnames)# as.list(data_sets))
     })
+     output$SelectDate  <- renderUI({
+       if(is.null(input$file))
+         varnames=NULL
+       else{
+         matrix<-myData
+         InterestingVaraible<-TimeColumnName
+         ACTdata <- selectedColumn(matrix, InterestingVaraible)
+         #tempDate$time=as.Date(myData$TimeColumnName)
+
+        
+         MinDate <- as.Date(matrix[[1,TimeColumnName]])
+         MaxDate <- as.Date(matrix[[nrow(matrix),TimeColumnName]])
+        }
+       dateRangeInput("daterange", "Date range:",
+                     start  = MinDate,
+                     end    = MaxDate,
+                     min    = MinDate,
+                     max    = MaxDate,
+                     format = "yyyy-mm-dd",
+                     separator = " - ")
+     })
+ #    output$ApplyDate <- renderUI({actionButton("applytimeperiod", "Filter Time")})
+     
+     
     output$KindGraph <-renderUI({
         radioButtons("graph", "Select the Graph",
                      c("2D plot",
@@ -61,28 +88,49 @@ server <- function(input, output, session) {
         radioButtons("organizer", "Show data grouped by:",
                      c("full period",
                        "time day",
-                       "day week"))
+                       "week day"))
     })},
     ignoreInit = TRUE)
     
-    observeEvent(input$Variable,
+    observeEvent(input$graph,{
+      output$OrganizeBy <-renderUI({
+        if(input$graph == "2D plot"){
+          radioButtons("organizer", "Show data grouped by:",
+                     c("full period"))
+        }else if(input$graph == "Heatmap" | input$graph == "boxPlotByDay"){
+          radioButtons("organizer", "Show data grouped by:",
+                       c("time day",
+                         "week day"))
+        }
+      })},
+      ignoreInit = TRUE)
+    
+    observeEvent(input$Variable,#c(input$Variable , input$applytimeperiod),
                  {output$presentation <-renderPlot({
                     # Create a local variable myData  that is a local copy of the global varaible myData
                     matrix<-myData 
                     InterestingVaraible<- input$Variable
                     ActData <- selectedColumn(matrix, InterestingVaraible)
+                    timestart <-input$daterange[1]
+                    timeEnd   <-input$daterange[2]
+                    intervalTime= interval(as.POSIXct(timestart),as.POSIXct(timeEnd))
+                    mysubsetData <- ActData[ActData$time %within% intervalTime,]
                     if(input$graph == "2D plot"){
                         if(input$organizer=="full period"){
-                          return(rowvisualization(ActData))
+                          return(rowvisualization(mysubsetData))
                         } 
                      # else if(input$organizer=="time day"){
                      #    return(plotbyDays(ActData,InterestingVaraible))
                      #  }
                     }else if(input$graph == "Heatmap"){
-                      return(plotbyDays(ActData,InterestingVaraible))
+                      if(input$organizer=="time day"){
+                        return(plotbyDays(mysubsetData,InterestingVaraible))
+                      }else if(input$organizer=="week day"){
+                        return(heatmapByWeekDays(mysubsetData,InterestingVaraible))
+                      }
                     }
                     else if(input$graph == "boxPlotByDay"){
-                      return(boxPlotByDay(ActData,InterestingVaraible))
+                      return(boxPlotByDay(mysubsetData,InterestingVaraible))
                     }
                      #       output$test <- (print(input$Variable))
                      #       return(rowvisualization(ActData))
