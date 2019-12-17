@@ -10,20 +10,20 @@ readData <- function(LocalPath, filename) {
 }
 
 # this function  retiun the selected varaibel i.e. columnname 
-selectedColumn <- function(data, columName){
-    temp<-data[c(columName,TimeColumnName)]
+selectedColumn <- function(dataVaraible, columName){
+    temp<-dataVaraible[c(columName,TimeColumnName)]
     colnames(temp)<-c("variable","time")
     return(temp)
 }
 
-rowvisualization <- function(data){
+rowvisualization <- function(dataVaraible){
   grafoCartesianoesteso<-ggplot()+
-    geom_line(data = data, aes(x = time,y=variable))
+    geom_line(data = dataVaraible, aes(x = time,y=variable))
   return(grafoCartesianoesteso)
 }
 
-plotbyDays <-function(data,InterestingVaraible){
-  temp<-data
+plotbyDays <-function(dataVaraible,InterestingVaraible){
+  temp<-dataVaraible
   temp$time <- as.POSIXct(temp$time, origin = "1970-01-01 00:00:00",
                             format = "%Y-%m-%d %H:%M:%S",
                             tz = "Etc/GMT+12")
@@ -64,3 +64,8 @@ plotbyDays <-function(data,InterestingVaraible){
     ggtitle(InterestingVaraible)
   return(heatmapgraph)
 }
+
+boxPlotByDay <-function(dataVaraible,InterestingVaraible)  {  
+  dataVaraible$time <- as.Date(dataVaraible$time)
+  return(boxplot(dataVaraible$variable ~ dataVaraible$time))
+  }

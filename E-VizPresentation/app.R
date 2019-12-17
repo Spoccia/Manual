@@ -54,7 +54,8 @@ server <- function(input, output, session) {
     output$KindGraph <-renderUI({
         radioButtons("graph", "Select the Graph",
                      c("2D plot",
-                       "Heatmap"))
+                       "Heatmap",
+                       "boxPlotByDay"))
     })
     output$OrganizeBy <-renderUI({
         radioButtons("organizer", "Show data grouped by:",
@@ -66,25 +67,33 @@ server <- function(input, output, session) {
     
     observeEvent(input$Variable,
                  {output$presentation <-renderPlot({
-                   # Create a local variable myData  that is a local copy of the global varaible myData
-                   matrix<-myData 
-                   InterestingVaraible<- input$Variable
-                   ActData <- selectedColumn(matrix, InterestingVaraible)
-                   if(input$graph == "2D plot"){
-                      if(input$organizer=="full period"){
+                    # Create a local variable myData  that is a local copy of the global varaible myData
+                    matrix<-myData 
+                    InterestingVaraible<- input$Variable
+                    ActData <- selectedColumn(matrix, InterestingVaraible)
+                    if(input$graph == "2D plot"){
+                        if(input$organizer=="full period"){
                           return(rowvisualization(ActData))
-                      } else if(input$organizer=="time day"){
-                        return(plotbyDays(ActData,InterestingVaraible))
-                      }
-                   }
+                        } 
+                     # else if(input$organizer=="time day"){
+                     #    return(plotbyDays(ActData,InterestingVaraible))
+                     #  }
+                    }else if(input$graph == "Heatmap"){
+                      return(plotbyDays(ActData,InterestingVaraible))
+                    }
+                    else if(input$graph == "boxPlotByDay"){
+                      return(boxPlotByDay(ActData,InterestingVaraible))
+                    }
                      #       output$test <- (print(input$Variable))
                      #       return(rowvisualization(ActData))
                      #    }
-                         return()
-                    })},
+                    return()
+                  })
+               },
                  ignoreInit = TRUE
-    )
-}
+              )
+
+    } # END sERVER
 
 # readData <- function(LocalPath, filename) {
 #     temp <- paste0(LocalPath,filename )
