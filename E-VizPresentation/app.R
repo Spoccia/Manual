@@ -323,6 +323,38 @@ server <- function(input, output, session) {
         )
       })
     }
+    
+    output[["box3_6"]] <- renderUI({
+      
+      box(
+        actionButton("reuse", "L'ACCENDIAMO?"), width = "100%",
+        solidHeader = T, status = "warning", title = "Save cluster labels"
+      )
+      
+    })
+    
+    output[["box3_7"]] <- renderUI({
+      
+      cList <- "intensive"
+      if(input$norm_3 != "none") cList <- c(cList,"normalized")
+      
+      if(input$clus %in% c("average","ward.D2","single","complete")) cList <- c(cList,"dendrogram")
+      
+      box(
+        selectInput("plot_type2sheet", "Choices:", choices = cList, selected = "intensive"),
+        downloadButton('downloadPlot', 'Download Plot'),
+        width = "100%",
+        solidHeader = T, status = "primary", title = "Select visualization type"
+      )
+      
+    })
+    
+    output$downloadPlot <- downloadHandler(
+      filename = function() { paste(input$plot_type2sheet, '.jpg', sep='') },
+      content = function(file) {
+        ggsave(file,clus_plot_input())
+      }
+    )
   })
   
   observeEvent(input$submit3, {
@@ -415,37 +447,112 @@ server <- function(input, output, session) {
       
       hcl <- hclust(hcl_dist, method = clus_method)
       
-      values$cl_plot <- hcl
+      values$cl_plot <<- hcl
       
       cluster <- cutree(hcl, k = input$K_3)
-      
-      # data <- as.data.frame(cbind(data, cluster))
       
       data <- cbind(data, cluster)
       
       data <- data%>%
         select(DATE, cluster)
       
-      values$df_clus <- data
+      values$df_clus <<- data
+      
+    }
+    
+    output$clus_tab <- renderTable({
+      
+      if(is.null(input$clus)) return()
+      
+      # df <- as.data.frame(res_clus())
+      values<-values
+      df <- values$df_clus
+      
+      df <- df %>%
+        split(.$cluster) %>%
+        map(function(x) as.data.frame(t(c("profiles" = nrow(x)
+        )))) %>%
+        ldply(data.frame, .id = "cluster")
+    })
+    
+    output$clus_plot <- renderPlot(
+      print(clus_plot_input())
+    )
+  })
+
+  
+  clus_plot_input <- reactive( {
+    values<-values
+    if(is.null(input$clus)) return()
+    
+    if(input$plot_type2sheet == "dendrogram"){
+      
+      hcl <- as.dendrogram(values$cl_plot)
+      
+      hcl %>% set("branches_k_color", k = input$K_3)%>% set("branches_lwd", 3) %>%
+        plot()
+      
+      
+    }else{
+      
+      y <- input$clusterVaraiable
+      
+      data <- values$df_data[,c("DATE","TIME",y)]
+      
+      if(input$plot_type2sheet == "normalized"){
+        
+        if(input$norm_3 == "z-score"){
+          
+          data$y <- (data$y-mean(data$y))/sd(data$y)
+          
+        }else {
+          
+          data <- data %>%
+            spread(TIME,y)
+          
+          if(input$norm_3 == "max"){
+            
+            data[2:ncol(data)] <- data[2:ncol(data)]/apply(data[2:ncol(data)], 1, max)
+            
+          }
+          
+          if(input$norm_3 == "max-min"){
+            
+            data[2:ncol(data)] <- (data[2:ncol(data)] - apply(data[2:ncol(data)], 1, min))/(apply(data[2:ncol(data)], 1, max) - apply(data[2:ncol(data)], 1, min))
+            
+          }
+          
+          data <- data %>%
+            gather(TIME,y, 2:ncol(data))
+          
+        }
+        
+      }
+      
+      clus <- values$df_clus
+      colnames(data)[3] <- "y"
+      
+      df <- merge.data.frame(data, clus)
+      
+      centroid <- ddply(df, c("cluster","TIME"),summarize, y = mean(y))
+      
+      g1 <- ggplot()+
+        geom_line(data = df, aes(x = as.POSIXct(TIME, format="%H:%M:%S" , tz="Etc/GMT+12"), y = y, group = DATE), color = "gray75", size = 0.5)+
+        geom_line(data = centroid  , aes(x = as.POSIXct(TIME, format="%H:%M:%S" , tz="Etc/GMT+12") , y = y , color = as.factor(cluster), group = as.factor(cluster)), size = 1)+
+        theme_bw()+
+        facet_wrap(~cluster)+
+        scale_x_datetime(expand = c(0,0), labels = date_format("%H:%M" , tz="Etc/GMT+12"), breaks = date_breaks("4 hour"))+
+        theme(
+          legend.position = "none"
+        )+
+        labs(x = "TIME" , y = input$y )
+      
+      g1
       
     }
     
   })
-  output$clus_tab <- renderTable({
-    
-    if(is.null(input$clus)) return()
-    
-    # df <- as.data.frame(res_clus())
-    
-    df <- values$df_clus
-    
-    df <- df %>%
-      split(.$cluster) %>%
-      map(function(x) as.data.frame(t(c("profiles" = nrow(x)
-      )))) %>%
-      ldply(data.frame, .id = "cluster")
-    
-  })
+  
   
 } # END sERVER
 
