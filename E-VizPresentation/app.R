@@ -430,7 +430,8 @@ server <- function(input, output, session) {
       data <- data%>%
         select(DATE, cluster)
       
-      values$df_clus <- data
+      values$df_clus <<- data
+     
       
     }else if(clus_method %in% c("ward.D2","average","single","complete")){
       
@@ -457,7 +458,7 @@ server <- function(input, output, session) {
         select(DATE, cluster)
       
       values$df_clus <<- data
-      
+      values$df_data<<-df_data
     }
     
     output$clus_tab <- renderTable({
@@ -495,7 +496,7 @@ server <- function(input, output, session) {
       
     }else{
       
-      y <- input$clusterVaraiable
+      y <- "variable"#input$clusterVaraiable
       
       data <- values$df_data[,c("DATE","TIME",y)]
       
@@ -537,8 +538,8 @@ server <- function(input, output, session) {
       centroid <- ddply(df, c("cluster","TIME"),summarize, y = mean(y))
       
       g1 <- ggplot()+
-        geom_line(data = df, aes(x = as.POSIXct(TIME, format="%H:%M:%S" , tz="Etc/GMT+12"), y = y, group = DATE), color = "gray75", size = 0.5)+
-        geom_line(data = centroid  , aes(x = as.POSIXct(TIME, format="%H:%M:%S" , tz="Etc/GMT+12") , y = y , color = as.factor(cluster), group = as.factor(cluster)), size = 1)+
+        geom_line(data = df, aes(x = as.POSIXct(TIME, format="%H:%M" , tz="Etc/GMT+12"), y = y, group = DATE), color = "gray75", size = 0.5)+
+        geom_line(data = centroid  , aes(x = as.POSIXct(TIME, format="%H:%M" , tz="Etc/GMT+12") , y = y , color = as.factor(cluster), group = as.factor(cluster)), size = 1)+
         theme_bw()+
         facet_wrap(~cluster)+
         scale_x_datetime(expand = c(0,0), labels = date_format("%H:%M" , tz="Etc/GMT+12"), breaks = date_breaks("4 hour"))+
