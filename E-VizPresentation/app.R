@@ -99,6 +99,7 @@ server <- function(input, output, session) {
   output$choose_dataset <- renderUI({
     fileInput(inputId = "file", label = "Choose file")
   })
+  
   observeEvent(input$file,{
     output$SelectColumn <- renderUI({
       if(is.null(input$file))
@@ -110,6 +111,24 @@ server <- function(input, output, session) {
         columnNames<<-colnames(myData[,6:ncol(myData)])
       }
       selectInput("Variable", "Variable",choices =columnNames)# as.list(data_sets))
+      
+      # output[["box3_1"]] <- renderUI({
+      #   
+      #   # if(is.null(clusindex)) return()
+      #   
+      #   varname<-columnNames
+      #   
+      #   box(h4("Select variable to analyze:"),
+      #       # clusterVariable was y
+      #       selectInput('clusterVaraiable', 'Variable:', choices = NULL),
+      #       h4("Select normalization type:"),
+      #       selectInput('norm_3', 'Normalization:', choices = c("none","max","max-min","z-score")),
+      #       h4("Select distance type:"),
+      #       selectInput('distance3', 'Distance:', choices = c("Euclidean","PCC")), width = "100%",
+      #       background = "black"
+      #   )
+      # })
+      
     })
     output$SelectDate  <- renderUI({
       if(is.null(input$file))
@@ -221,6 +240,8 @@ server <- function(input, output, session) {
     }
   )
   
+
+  
   observeEvent(input$items, {
     
     if(input$items == "Inspector"){
@@ -240,87 +261,88 @@ server <- function(input, output, session) {
             background = "black"
         )
       })
-    }
-    output[["box3_2"]] <- renderUI({
       
-      if(input$distance3 == "PCC"){
-        box(
-          h4("Select desired clustering method:"),
-          selectInput('clus', 'Method:', choices = c("ward.D2","average","single","complete")), width = "100%",
-          background = "black"
-        )
-      }else {
-        
-        box(
-          selectInput('clus', 'Method:', choices = c("ward.D2","average","single","complete",
-                                                     "FDL","kmeans","kmeans++")), width = "100%",
-          background = "black"
-        )
-      }
-    })
-    
-    output[["box3_3"]] <- renderUI({
-      
-      if(is.null(input$clus)) return()
-      if(input$clus == "FDL"){
-        box(
-          h3("Set max distance"),
-          selectInput("D_3", "Distance:", choices = seq(20,100,5)),
+      output[["box3_2"]] <- renderUI({
+        tempvalue<-input$distance3
+        if(input$distance3 == "PCC"){
+          box(
+            h4("Select desired clustering method:"),
+            selectInput('clus', 'Method:', choices = c("ward.D2","average","single","complete")), width = "100%",
+            background = "black"
+          )
+        }else {
           
-          tags$hr(),
-          actionButton("submit3", "start clUUUster"), width = "100%",
-          background = "black"
-        )
+          box(
+            selectInput('clus', 'Method:', choices = c("ward.D2","average","single","complete",
+                                                       "FDL","kmeans","kmeans++")), width = "100%",
+            background = "black"
+          )
+        }
+      })
+      
+      output[["box3_3"]] <- renderUI({
         
+        if(is.null(input$clus)) return()
+        if(input$clus == "FDL"){
+          box(
+            h3("Set max distance"),
+            selectInput("D_3", "Distance:", choices = seq(20,100,5)),
+            
+            tags$hr(),
+            actionButton("submit3", "start clUUUster"), width = "100%",
+            background = "black"
+          )
+          
+          
+        }else {
+          
+          box(
+            h3("Select desired number of cluster"),
+            selectInput('K_3', 'Clusters:', choices = c(2:50)),
+            tags$hr(),
+            actionButton("submit3", "start clUUUster"), width = "100%",
+            background = "black"
+          )
+        }
+      })
+      output[["box3_5"]] <- renderUI({
         
-      }else {
+        if(is.null(input$clus))
+        {
+          return()
+        }
+        
+        data <- values$df_clus
         
         box(
-          h3("Select desired number of cluster"),
-          selectInput('K_3', 'Clusters:', choices = c(2:50)),
+          h3("Select cluster to merge"),
+          selectInput("K_merge", "Clusters:", choices = unique(data$cluster), multiple = T),
           tags$hr(),
-          actionButton("submit3", "start clUUUster"), width = "100%",
+          actionButton("merge", "FU-SIO-NEEEEEE"), width = "100%",
           background = "black"
         )
-      }
-    })
-    output[["box3_5"]] <- renderUI({
-      
-      if(is.null(input$clus))
-      {
-        return()
-      }
-      
-      data <- values$df_clus
-      
-      box(
-        h3("Select cluster to merge"),
-        selectInput("K_merge", "Clusters:", choices = unique(data$cluster), multiple = T),
-        tags$hr(),
-        actionButton("merge", "FU-SIO-NEEEEEE"), width = "100%",
-        background = "black"
-      )
-    })
-    })
+      })
+    }
+  })
   
   observeEvent(input$submit3, {
     if(is.null(input$clus)) 
-      {
-        return()
-      }
+    {
+      return()
+    }
     y <- input$clusterVaraiable
     norm_method <- input$norm_3
     
     df_data<-selectedColumn(myData,y)
     df_data$time <- as.POSIXct(df_data$time, origin = "1970-01-01 00:00:00",
-                            format = "%Y-%m-%d %H:%M:%S",
-                            tz = "Etc/GMT+12")
+                               format = "%Y-%m-%d %H:%M:%S",
+                               tz = "Etc/GMT+12")
     df_data <- df_data %>%
       mutate(
         DATE = as.Date(time),
         TIME = format(as.POSIXct(df_data$time,format="%H:%M:%S"),"%H:%M")
       )
-
+    
     data <- df_data[,c("DATE","TIME","variable")]
     
     colnames(data)[3] <- "y"
@@ -409,7 +431,21 @@ server <- function(input, output, session) {
     }
     
   })
-  
+  output$clus_tab <- renderTable({
+    
+    if(is.null(input$clus)) return()
+    
+    # df <- as.data.frame(res_clus())
+    
+    df <- values$df_clus
+    
+    df <- df %>%
+      split(.$cluster) %>%
+      map(function(x) as.data.frame(t(c("profiles" = nrow(x)
+      )))) %>%
+      ldply(data.frame, .id = "cluster")
+    
+  })
   
 } # END sERVER
 
