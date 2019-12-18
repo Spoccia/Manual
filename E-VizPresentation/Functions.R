@@ -72,7 +72,10 @@ maximumTime<- function(dataVaraible){
 }
 boxPlotByDay <-function(dataVaraible,InterestingVaraible)  {  
   dataVaraible$time <- as.Date(dataVaraible$time)
-  return(boxplot(dataVaraible$variable ~ dataVaraible$time))
+  ## need og a ggplot for downloading
+  # p <-ggplot(dataVaraible, aes(x=time, y=variable)) + 
+  #   geom_boxplot()
+  return(boxplot(dataVaraible$variable ~ dataVaraible$time))#p)#
 }
 
 heatmapByWeekDays <-function(dataVaraible,InterestingVaraible){
@@ -122,4 +125,22 @@ heatmapByWeekDays <-function(dataVaraible,InterestingVaraible){
     labs(x = "Hours" , y="week days", fill="")+
     ggtitle(InterestingVaraible)
   return(heatmapgraph)
+}
+
+boxPlotByweekDay <-function(dataVaraible,InterestingVaraible)  {  
+  
+  dataVaraible<- dataVaraible%>% 
+    mutate(
+      date = as.Date(time),
+   #   daytime = format(as.POSIXct(dataVaraible$time,format="%H:%M:%S"),"%H:%M")
+    )
+  dataVaraible <- dataVaraible %>% 
+    mutate(weekday = weekdays(date)) %>% 
+    mutate(weekday = factor(weekday,
+                            levels =  c("Sunday", "Monday", "Tuesday", "Wednesday",
+                                        "Thursday", "Friday", "Saturday")))
+  #dataVaraible$time <- as.Date(dataVaraible$time)
+  p <-ggplot(dataVaraible, aes(x=weekday, y=variable)) + 
+    geom_boxplot()
+  return(p)#boxplot(dataVaraible$variable ~ dataVaraible$weekday))
 }
