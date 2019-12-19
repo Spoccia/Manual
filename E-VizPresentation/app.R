@@ -318,7 +318,7 @@ server <- function(input, output, session) {
           h3("Select cluster to merge"),
           selectInput("K_merge", "Clusters:", choices = unique(data$cluster), multiple = T),
           tags$hr(),
-          actionButton("merge", "FU-SIO-NEEEEEE"), width = "100%",
+          actionButton("merge", "Merge Selected Clusters"), width = "100%",
           background = "black"
         )
       })
@@ -327,7 +327,7 @@ server <- function(input, output, session) {
     output[["box3_6"]] <- renderUI({
       
       box(
-        actionButton("reuse", "L'ACCENDIAMO?"), width = "100%",
+        actionButton("reuse", "Reuse Clusters"), width = "100%",
         solidHeader = T, status = "warning", title = "Save cluster labels"
       )
       
@@ -554,6 +554,22 @@ server <- function(input, output, session) {
     
   })
   
+  observeEvent(input$reuse, {
+    temp2 <- values$df_data
+    temp1 <- values$df_clus[c("DATE","cluster")]
+    temp1$cluster <- as.character(temp1$cluster)
+    colnames(temp1)[2] <- paste("cluster", input$y, sep = "_")
+    temp2[which(colnames(temp2) == paste("cluster", input$y, sep = "_"))] <- NULL
+    values$df_data <- merge.data.frame(temp1, temp2, all.x = T)
+    
+  })
+  
+  observeEvent(input$merge, {
+    temp1 <- values$df_clus
+    temp2 <- min(input$K_merge)
+    temp1$cluster[temp1$cluster %in% input$K_merge] <- temp2
+    values$df_clus <- temp1
+  })
   
 } # END sERVER
 
