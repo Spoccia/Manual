@@ -66,6 +66,21 @@ body<- dashboardBody(
                      uiOutput('box3_6')
               )
             )
+    ),
+    tabItem(tabName = "cart",
+            fluidRow(
+              column(4,
+                     uiOutput('box4_1')
+              ),
+              column(8,
+                     box(tableOutput("cm_cart"), width = "100%",
+                         solidHeader = T, status = "primary", title = "Confusion Matrix"),
+                     box(plotOutput("cp_plot", width = "800px", height = "450px"), width = "100%",
+                         solidHeader = T, status = "primary", title = "CP Plot"),
+                     box(plotOutput("cart_plot", width = "800px", height = "600px"), width = "100%",
+                         solidHeader = T, status = "primary", title = "Tree Plot")
+              )
+            )
     )
     
   )
@@ -76,7 +91,8 @@ ui <- dashboardPage(
   dashboardSidebar(
     sidebarMenu(id="items",
                 menuItem("Visualizer", tabName = "E-Viz", icon = icon("dashboard")),
-                menuItem("Inspector", tabName = "Inspector", icon = icon("th"))
+                menuItem("Inspector", tabName = "Inspector", icon = icon("th")),
+                menuItem("CART", tabName = "cart", icon = icon("ambulance"))
     )
   ),
   body
@@ -94,6 +110,8 @@ values<-NULL
 
 
 server <- function(input, output, session) {
+  
+  options(shiny.maxRequestSize=100*1024^2)
   
   values <- reactiveValues(df_data = NULL, df_out = NULL, df_clus = NULL,list_var= NULL, cl_plot = NULL)
   output$choose_dataset <- renderUI({
@@ -264,7 +282,10 @@ server <- function(input, output, session) {
       
       output[["box3_2"]] <- renderUI({
         tempvalue<-input$distance3
-        if(input$distance3 == "PCC"){
+        distance3Value="Euclidean"
+        if(length(input$distance3)!=0)
+          distance3Value=input$distance3
+        if(distance3Value == "PCC"){
           box(
             h4("Select desired clustering method:"),
             selectInput('clus', 'Method:', choices = c("ward.D2","average","single","complete")), width = "100%",
@@ -336,9 +357,16 @@ server <- function(input, output, session) {
     output[["box3_7"]] <- renderUI({
       
       cList <- "intensive"
-      if(input$norm_3 != "none") cList <- c(cList,"normalized")
+      norm3Value="none"
+      clusValue = "ward.D2"
+      if(length(input$norm_3 )!=0)
+        norm3Value=input$norm_3
+      if(length(input$clus)!=0)
+         clusValue=input$clus
       
-      if(input$clus %in% c("average","ward.D2","single","complete")) cList <- c(cList,"dendrogram")
+      if(norm3Value != "none") cList <- c(cList,"normalized")
+      
+      if(clusValue %in% c("average","ward.D2","single","complete")) cList <- c(cList,"dendrogram")
       
       box(
         selectInput("plot_type2sheet", "Choices:", choices = cList, selected = "intensive"),
@@ -499,7 +527,7 @@ server <- function(input, output, session) {
       y <- "variable"#input$clusterVaraiable
       
       data <- values$df_data[,c("DATE","TIME",y)]
-      
+
       if(input$plot_type2sheet == "normalized"){
         
         if(input$norm_3 == "z-score"){
@@ -546,7 +574,7 @@ server <- function(input, output, session) {
         theme(
           legend.position = "none"
         )+
-        labs(x = "TIME" , y = input$y )
+        labs(x = "TIME" , y = input$clusterVaraiable)#input$y )
       
       g1
       
@@ -558,8 +586,8 @@ server <- function(input, output, session) {
     temp2 <- values$df_data
     temp1 <- values$df_clus[c("DATE","cluster")]
     temp1$cluster <- as.character(temp1$cluster)
-    colnames(temp1)[2] <- paste("cluster", input$y, sep = "_")
-    temp2[which(colnames(temp2) == paste("cluster", input$y, sep = "_"))] <- NULL
+    colnames(temp1)[2] <- paste("cluster", input$clusterVaraiable, sep = "_")# input$y, sep = "_")
+    temp2[which(colnames(temp2) == paste("cluster", input$clusterVaraiable, sep = "_"))] <- NULL#input$y, sep = "_"))] <- NULL
     values$df_data <- merge.data.frame(temp1, temp2, all.x = T)
     
   })
@@ -570,6 +598,127 @@ server <- function(input, output, session) {
     temp1$cluster[temp1$cluster %in% input$K_merge] <- temp2
     values$df_clus <- temp1
   })
+  
+  ### CART
+  
+  output[["box4_1"]] <- renderUI({
+    
+    data <- values$df_data
+    
+    num_var <- sapply(data, is.numeric)
+    num_var <- names(num_var[num_var == TRUE])
+    num_var <- num_var[num_var != input$clusterVaraiable]#input$y]
+    
+    cat_var <- colnames(data)
+    cat_var <- cat_var[!cat_var %in% c(num_var,"DATE","TIME","DATE_TIME",input$clusterVaraiable)]#input$y)]
+    
+    box(
+      h4("Select numeric variables:"),
+      selectInput("num_var", "Variables:", choices = num_var, multiple = T),
+      h4("Select fucntions to apply:"),
+      checkboxGroupInput("fun_gr", "Functions:", choices = list("mean" = 1, "max" = 2, "min" = 3, "sd" = 4), selected = 1),
+      h4("Select categorical variables:"),
+      selectInput("cat_var", "Variables:", choices = cat_var, multiple = T),
+      h4("Select CART max depth:"),
+      sliderInput("max_depth", "Value:", min = 2, max = 30, value = 4, step = 1 ),
+      h4("Select CART min bucket:"),
+      sliderInput("min_buck", "Value:", min = 1, max = 50, value = 12, step = 1 ),
+      actionButton("CART", "Un po' di CART qua?"),
+      width = "100%",
+      solidHeader = T,
+      status = "warning",
+      background = "black"
+    )
+    
+  })
+  
+  cart_res <- eventReactive(input$CART,{
+    
+    if(is.null(input$num_var) & is.null(input$cat_var)) return()
+    
+    data <- values$df_data
+    
+    data <- data[c("DATE",input$cat_var,input$num_var)]
+    
+    M <- ncol(data[c("DATE",input$cat_var)])
+    
+    data_end <- unique(data[c("DATE",input$cat_var)])
+    
+    if(!is.null(input$num_var)){
+      
+      for(i in 1:length(input$fun_gr)){
+        
+        data_x <- ddply(data, c("DATE",input$cat_var), colwise(match.fun(f_mat(input$fun_gr[i]))))
+        
+        colnames(data_x)[(M+1):ncol(data_x)] <- paste(f_mat(input$fun_gr[i]), colnames(data_x)[(M+1):ncol(data_x)], sep = "_")
+        
+        data_end <- merge.data.frame(data_end, data_x)
+      }
+    }
+    
+    data <- data_end
+    # data <- ddply(data, c("DATE",input$cat_var), colwise(mean))
+    
+    clus <- values$df_clus[c("DATE","cluster")]
+    
+    data <- merge.data.frame(data,clus)
+    
+    data$cluster <- as.factor(data$cluster)
+    set.seed(200)
+    ct <- rpart(reformulate(response = "cluster" , termlabels = names(data[!names(data) %in% c("DATE","cluster")])) ,
+                data = data, control = rpart.control(cp = 0 , minsplit = 0, xval = 10, maxdepth = input$max_depth, minbucket = input$min_buck))
+    cp.table <- as.data.frame(ct$cptable)
+    pcp <- plotcp(ct)
+    
+    min_err <- cp.table[cp.table$xerror == min(cp.table$xerror) , ]
+    
+    min_err <- min_err[min_err$nsplit == min(min_err$nsplit) , ]
+    ct_pre <- ct
+    ct <- prune(ct , cp = max(cp.table$CP[cp.table$xerror < min_err$xerror + min_err$xstd]  )    )
+    
+    cm <- as.data.frame(as.matrix(table(data[,"cluster"],predict(ct, data, type = "class"))))
+    cm <- spread(cm , Var2, Freq)
+    rownames(cm) <- cm$Var1
+    cm$Var1 <- NULL
+    
+    res <- list("model" = ct, "cm" = cm, "cp_plot" = ct_pre)
+    
+  })
+  
+  output$cm_cart <- renderTable({
+    
+    req(cart_res())
+    
+    cm <- cart_res()[["cm"]]
+    
+    cm
+  },include.rownames=T)
+  
+  output$cp_plot <- renderPlot({ 
+    
+    req(cart_res()) ## ?req #  require that the input is available
+    
+    pcp <- cart_res()[["cp_plot"]]
+    
+    plotcp(pcp)
+    
+  })
+  
+  
+  output$cart_plot <- renderPlot({ 
+    
+    req(cart_res()) ## ?req #  require that the input is available
+    
+    ct <- cart_res()[["model"]]
+    
+    cm <- cart_res()[["cm"]]
+    
+    accuracy = round(sum(diag(as.matrix(cm[1:(length(cm))]))) / sum(cm[1:(length(cm))]),3)
+    
+    plot(as.party(ct), main=paste("Accuracy: ", accuracy), gp=gpar(fontsize=7))
+  })
+  
+  
   
 } # END sERVER
 

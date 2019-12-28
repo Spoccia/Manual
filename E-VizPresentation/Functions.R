@@ -1,10 +1,17 @@
 library(readxl)
 library(ggplot2)
+library(tools)
  TimeColName="Date/Time"
 
 readData <- function(LocalPath, filename) {
+  MyData <- NULL
   temp <- paste0(LocalPath,filename )
-  MyData <-read_excel(temp)
+#  if (file_ext(temp) == 'xls' | file_ext(temp) == 'xlsx'){
+    MyData <-read_excel(temp)
+#  }
+#  else if(file_ext(temp) == 'csv'){
+#    MyData <-read.csv(temp)#, header = FALSE)
+#  }
   MyData[TimeColName]<-as.POSIXct((MyData[[TimeColName]]-719529)*86400, origin = '1970-01-01', tz='UCT')
   return(MyData)
 }
@@ -144,3 +151,18 @@ boxPlotByweekDay <-function(dataVaraible,InterestingVaraible)  {
     geom_boxplot()
   return(p)#boxplot(dataVaraible$variable ~ dataVaraible$weekday))
 }
+
+
+
+## functions CART
+
+f_mat <- function(x){
+  
+  if(x == 1) s <- "mean"
+  if(x == 2) s <- "max"
+  if(x == 3) s <- "min"
+  if(x == 4) s <- "sd"
+  
+  return(s)
+}
+
